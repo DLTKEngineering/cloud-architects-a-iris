@@ -1,0 +1,39 @@
+name: Black Duck SCA Scan
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 4 * * 1'
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  blackduck_scan:
+    runs-on: ubuntu-latest
+    name: Black Duck Software Composition Analysis
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Black Duck Scan
+        uses: synopsys-sig/synopsys-action@v1.7.0
+        with:
+          blackduck_url: ${{ secrets.BLACKDUCK_URL }}
+          blackduck_token: ${{ secrets.BLACKDUCK_TOKEN }}
+          blackduck_scan_full: true
+          blackduck_scan_failure_severities: 'BLOCKER,CRITICAL,MAJOR'
+          blackduck_fixpr_enabled: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          blackduck_trust_cert: true
+      - name: Upload Black Duck results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blackduck-results
+          path: |
+            .synopsys/
+            blackduck-output/
