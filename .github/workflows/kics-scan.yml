@@ -1,0 +1,29 @@
+name: KICS Security Scan
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 2 * * 1'
+
+jobs:
+  kics_scan:
+    runs-on: ubuntu-latest
+    name: KICS Infrastructure as Code Security Scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Run KICS Scan
+        uses: checkmarx/kics-github-action@v1
+        with:
+          path: .
+          fail_on: high,medium
+          output_formats: json,sarif
+          output_path: kics-results
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload KICS results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kics-results
+          path: kics-results/
