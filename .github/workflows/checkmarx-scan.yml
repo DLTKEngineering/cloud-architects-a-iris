@@ -1,0 +1,59 @@
+name: Checkmarx SAST Scan
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 3 * * 1'
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  checkmarx_scan:
+    runs-on: ubuntu-latest
+    name: Checkmarx SAST Security Scan
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Checkmarx SAST Scan
+        uses: checkmarx-ts/checkmarx-cxflow-github-action@v1.6
+        with:
+          project: ${{ github.repository }}
+          team: ${{ github.repository_owner }}
+          checkmarx_url: ${{ secrets.CHECKMARX_URL }}
+          checkmarx_username: ${{ secrets.CHECKMARX_USERNAME }}
+          checkmarx_password: ${{ secrets.CHECKMARX_PASSWORD }}
+          checkmarx_client_secret: ${{ secrets.CHECKMARX_CLIENT_SECRET }}
+          incremental: false
+          preset: Checkmarx Default
+          break_build: false
+          bug_tracker: Sarif
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check if SARIF file exists
+        run: |
+          if [ -f "cx.sarif" ]; then
+            echo "SARIF file found"
+            ls -la cx.sarif
+          else
+            echo "SARIF file not found, checking current directory:"
+            ls -la
+            find . -name "*.sarif" -type f
+          fi
+      - name: Upload Checkmarx results to GitHub Security
+        if: always() && hashFiles('cx.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: cx.sarif
+      - name: Upload Checkmarx results as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkmarx-results
+          path: |
+            cx.sarif
+            checkmarx-results/
+            *.sarif
